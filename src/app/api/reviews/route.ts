@@ -19,9 +19,9 @@ const companyReviewSchema = z.object({
   score_wlb: z.number().int().min(1).max(5),
   score_management: z.number().int().min(1).max(5),
 
-  pros: z.string().optional().default(""),
-  cons: z.string().optional().default(""),
-  advice_to_management: z.string().optional(),
+  pros: z.string().max(5000, "Điểm tốt tối đa 5.000 ký tự").optional().default(""),
+  cons: z.string().max(5000, "Điểm xấu tối đa 5.000 ký tự").optional().default(""),
+  advice_to_management: z.string().max(2000, "Lời nhắn tối đa 2.000 ký tự").optional(),
   recommend_to_friend: z.boolean().default(true),
 });
 
@@ -38,6 +38,15 @@ export async function POST(req: NextRequest) {
     }
 
     const data = validated.data;
+
+    // Thiếu cả company_id lẫn company_name: lỗi dữ liệu từ client (400),
+    // không để rơi xuống tầng lưu trữ thành lỗi 500.
+    if (!data.company_id && !data.company_name) {
+      return NextResponse.json(
+        { error: "Không xác định được công ty để lưu đánh giá." },
+        { status: 400 }
+      );
+    }
 
     // Sinh author_hash ẩn danh từ client IP
     const clientIp =

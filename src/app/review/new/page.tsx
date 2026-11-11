@@ -75,6 +75,8 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofUploaded, setProofUploaded] = useState<boolean | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ company?: string; jobTitle?: string; province?: string }>({});
 
@@ -166,6 +168,20 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
         setSelectedCompanyId(json.company_id);
       }
 
+      // Có đính kèm bằng chứng xác minh: tải lên qua API riêng sau khi
+      // review đã được tạo (cần review_id do server trả về).
+      if (proofFile && json.review_id) {
+        try {
+          const fd = new FormData();
+          fd.append("review_id", json.review_id);
+          fd.append("file", proofFile);
+          const vRes = await fetch("/api/reviews/verify", { method: "POST", body: fd });
+          setProofUploaded(vRes.ok);
+        } catch {
+          setProofUploaded(false);
+        }
+      }
+
       setIsSubmitting(false);
       setSubmittedSuccess(true);
     } catch (err) {
@@ -186,6 +202,16 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           Cảm ơn bạn đã đóng góp đánh giá chân thực. Review của bạn được bảo mật <strong>hoàn toàn ẩn danh</strong> và giúp ích rất nhiều cho cộng đồng người lao động.
         </p>
+        {proofUploaded === true && (
+          <p className="mt-3 inline-block rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 border border-emerald-200">
+            Bằng chứng xác minh đã được gửi và đang chờ duyệt. Huy hiệu &ldquo;Đã xác minh làm việc&rdquo; sẽ xuất hiện sau khi admin duyệt.
+          </p>
+        )}
+        {proofUploaded === false && (
+          <p className="mt-3 inline-block rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 border border-amber-200">
+            Không gửi được bằng chứng xác minh (review vẫn đã được đăng). Vui lòng liên hệ admin để bổ sung.
+          </p>
+        )}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"
@@ -529,6 +555,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                 rows={3}
                 placeholder="Điều gì bạn thích ở công ty này? (Môi trường, đồng nghiệp, chế độ, thưởng, sếp tốt...)"
                 value={pros}
+                maxLength={5000}
                 onChange={(e) => setPros(e.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-emerald-300 p-2.5 text-xs text-zinc-900 focus:border-emerald-600 focus:outline-none dark:border-emerald-800 dark:bg-zinc-800 dark:text-zinc-100"
               />
@@ -543,6 +570,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                 rows={3}
                 placeholder="Những mặt chưa tốt hoặc gây khó chịu? (Lương thấp, OT nhiều, áp lực, chế độ...)"
                 value={cons}
+                maxLength={5000}
                 onChange={(e) => setCons(e.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-rose-300 p-2.5 text-xs text-zinc-900 focus:border-rose-600 focus:outline-none dark:border-rose-800 dark:bg-zinc-800 dark:text-zinc-100"
               />
@@ -557,6 +585,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                 rows={2}
                 placeholder="Bạn có thông điệp gì gửi gắm đến ban giám đốc để công ty tốt hơn không?"
                 value={adviceToManagement}
+                maxLength={2000}
                 onChange={(e) => setAdviceToManagement(e.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-zinc-300 p-2.5 text-xs text-zinc-900 focus:border-red-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
               />
@@ -613,9 +642,10 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                       type="file"
                       accept="image/*,.pdf"
                       onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          // File sẽ được xử lý khi submit - feature coming soon
-                          e.target.title = "Đã chọn: " + e.target.files[0].name;
+                        const f = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                        setProofFile(f);
+                        if (f) {
+                          e.target.title = "Đã chọn: " + f.name;
                         }
                       }}
                       className="text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"

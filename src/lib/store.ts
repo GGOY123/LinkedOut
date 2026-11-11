@@ -490,6 +490,23 @@ export async function updateReviewStatus(
 }
 
 /**
+ * Kiểm tra review có tồn tại thật trên hệ thống hay không
+ * (dùng để chặn báo cáo nhắm vào review không tồn tại).
+ */
+export async function reviewExists(reviewId: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  const { data, error } = await supabase
+    .from("company_reviews")
+    .select("id")
+    .eq("id", reviewId)
+    .maybeSingle();
+
+  return !error && !!data;
+}
+
+/**
  * Lưu báo cáo vi phạm vào bảng review_reports
  */
 export async function saveReport(input: CreateReportInput): Promise<ReviewReport> {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { saveReport } from "@/lib/store";
+import { saveReport, reviewExists } from "@/lib/store";
 import { generateAuthorHash } from "@/lib/anonymity";
 import { ReportReason } from "@/types/database";
 
@@ -38,6 +38,15 @@ export async function POST(req: NextRequest) {
       req.headers.get("x-real-ip") ||
       "127.0.0.1";
     const reporterHash = generateAuthorHash(clientIp);
+
+    // Chỉ tiếp nhận báo cáo cho review tồn tại thật trên hệ thống
+    const exists = await reviewExists(review_id);
+    if (!exists) {
+      return NextResponse.json(
+        { error: "Review không tồn tại trên hệ thống." },
+        { status: 400 }
+      );
+    }
 
     // Lưu vào bảng review_reports trên Supabase
     const report = await saveReport({
