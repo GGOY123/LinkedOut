@@ -194,7 +194,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
           </button>
           {selectedCompanyId ? (
             <Link
-              href={`/company/${selectedCompanyId}`}
+              href={`/company/${encodeURIComponent(selectedCompanyId)}`}
               className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors shadow-sm"
             >
               Xem trang công ty
