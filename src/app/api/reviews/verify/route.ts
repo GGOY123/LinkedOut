@@ -92,7 +92,10 @@ export async function POST(req: NextRequest) {
       .upload(filePath, bytes, { contentType: file.type, upsert: false });
     if (uploadErr) {
       return NextResponse.json(
-        { error: "Không tải được file bằng chứng lên hệ thống." },
+        {
+          error: "Không tải được file bằng chứng lên hệ thống.",
+          detail: uploadErr.message,
+        },
         { status: 500 }
       );
     }
