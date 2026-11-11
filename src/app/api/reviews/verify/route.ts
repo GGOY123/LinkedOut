@@ -87,14 +87,30 @@ export async function POST(req: NextRequest) {
 
     const filePath = `${reviewId}/${crypto.randomUUID()}.${ext}`;
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error: uploadErr } = await admin.storage
-      .from(BUCKET)
-      .upload(filePath, bytes, { contentType: file.type, upsert: false });
-    if (uploadErr) {
+
+    // Tải file qua Storage REST API trực tiếp với header apikey (khóa sb_secret_).
+    // Không gửi kèm Authorization dạng Bearer: máy chủ Storage sẽ cố hiểu khóa
+    // không phải JWT đó như một JWS và báo lỗi "Invalid Compact JWS".
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const uploadRes = await fetch(
+      `${supabaseUrl}/storage/v1/object/${BUCKET}/${filePath}`,
+      {
+        method: "POST",
+        headers: {
+          apikey: serviceKey,
+          "Content-Type": file.type,
+          "x-upsert": "false",
+        },
+        body: bytes as BodyInit,
+      }
+    );
+    if (!uploadRes.ok) {
+      const detail = await uploadRes.text().catch(() => "");
       return NextResponse.json(
         {
           error: "Không tải được file bằng chứng lên hệ thống.",
-          detail: uploadErr.message,
+          detail: detail.slice(0, 300),
         },
         { status: 500 }
       );
@@ -105,9 +121,16 @@ export async function POST(req: NextRequest) {
       .insert({ review_id: reviewId, file_path: filePath, status: "pending" });
     if (insertErr) {
       // Dọn file vừa tải để tránh file rác không có bản ghi quản lý.
-      await admin.storage.from(BUCKET).remove([filePath]);
+      await fetch(`${supabaseUrl}/storage/v1/object/${BUCKET}`, {
+        method: "DELETE",
+        headers: { apikey: serviceKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ prefixes: [filePath] }),
+      }).catch(() => undefined);
       return NextResponse.json(
-        { error: "Không ghi nhận được bằng chứng xác minh." },
+        {
+          error: "Không ghi nhận được bằng chứng xác minh.",
+          detail: insertErr.message,
+        },
         { status: 500 }
       );
     }
