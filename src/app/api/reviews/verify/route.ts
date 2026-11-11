@@ -73,12 +73,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ review_id, file_path, status: "pending" }),
     });
     if (!insertRes.ok) {
-      const detail = await insertRes.text().catch(() => "");
       return NextResponse.json(
-        {
-          error: "Không ghi nhận được bằng chứng xác minh.",
-          detail: detail.slice(0, 300),
-        },
+        { error: "Không ghi nhận được bằng chứng xác minh." },
         { status: 500 }
       );
     }
