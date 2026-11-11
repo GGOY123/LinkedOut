@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { saveReview } from "@/lib/store";
+import { generateAuthorHash } from "@/lib/anonymity";
 
 const companyReviewSchema = z.object({
   company_id: z.string().optional(),
@@ -38,8 +39,15 @@ export async function POST(req: NextRequest) {
 
     const data = validated.data;
 
-    // Lưu vào hệ thống lưu trữ bền vững (Local JSON Store / Supabase)
-    const result = saveReview({
+    // Sinh author_hash ẩn danh từ client IP
+    const clientIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "127.0.0.1";
+    const authorHash = generateAuthorHash(clientIp);
+
+    // Lưu vào Supabase qua store
+    const result = await saveReview({
       company_id: data.company_id,
       company_name: data.company_name,
       province: data.province,
@@ -56,6 +64,7 @@ export async function POST(req: NextRequest) {
       cons: data.cons,
       advice_to_management: data.advice_to_management,
       recommend_to_friend: data.recommend_to_friend,
+      author_hash: authorHash,
     });
 
     return NextResponse.json({

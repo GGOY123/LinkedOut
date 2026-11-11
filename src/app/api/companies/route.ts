@@ -3,6 +3,6 @@ import { getAllCompanies } from "@/lib/store";
 
 
 export async function GET() {
-  const companies = getAllCompanies();
+  const companies = await getAllCompanies();
   return NextResponse.json({ companies });
 }

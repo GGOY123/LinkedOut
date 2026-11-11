@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { 
@@ -12,8 +12,7 @@ import {
   AlertCircle,
   Plus
 } from "lucide-react";
-import { MOCK_COMPANIES } from "@/data/mockData";
-import { EmploymentStatus } from "@/types/database";
+import { EmploymentStatus, CompanyMetrics } from "@/types/database";
 
 interface ReviewFormContentProps {
   onResetForm: () => void;
@@ -22,16 +21,40 @@ interface ReviewFormContentProps {
 function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
   const searchParams = useSearchParams();
   const initialCompanyId = searchParams.get("company_id") || "";
-  const initialCompany = MOCK_COMPANIES.find((c) => c.company_id === initialCompanyId);
+
+  // Danh sách công ty thật từ API / database để gợi ý
+  const [availableCompanies, setAvailableCompanies] = useState<CompanyMetrics[]>([]);
 
   // 1. Tên công ty (Tự do, không giới hạn)
-  const [companySearch, setCompanySearch] = useState(initialCompany ? initialCompany.company_name : "");
+  const [companySearch, setCompanySearch] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState(initialCompanyId);
-  const [isCustomCompany, setIsCustomCompany] = useState(!initialCompany);
-  const [companyProvince, setCompanyProvince] = useState(initialCompany ? initialCompany.province : "Bình Dương");
-  const [companyDistrict, setCompanyDistrict] = useState(initialCompany ? initialCompany.district : "");
-  const [companyIndustry, setCompanyIndustry] = useState(initialCompany ? initialCompany.industry : "");
+  const [isCustomCompany, setIsCustomCompany] = useState(true);
+  const [companyProvince, setCompanyProvince] = useState("Bình Dương");
+  const [companyDistrict, setCompanyDistrict] = useState("");
+  const [companyIndustry, setCompanyIndustry] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/companies")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.companies && Array.isArray(data.companies)) {
+          setAvailableCompanies(data.companies);
+          if (initialCompanyId) {
+            const found = data.companies.find((c: CompanyMetrics) => c.company_id === initialCompanyId);
+            if (found) {
+              setCompanySearch(found.company_name);
+              setSelectedCompanyId(found.company_id);
+              setIsCustomCompany(false);
+              setCompanyProvince(found.province);
+              setCompanyDistrict(found.district);
+              setCompanyIndustry(found.industry);
+            }
+          }
+        }
+      })
+      .catch((err) => console.error("Lỗi tải danh sách gợi ý công ty:", err));
+  }, [initialCompanyId]);
 
   // 2. Thông tin công việc
   const [jobTitle, setJobTitle] = useState("");
@@ -55,12 +78,12 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ company?: string; jobTitle?: string }>({});
 
-  // Suggestions
-  const matchingSuggestions = MOCK_COMPANIES.filter((c) =>
+  // Suggestions từ database thực
+  const matchingSuggestions = availableCompanies.filter((c) =>
     c.company_name.toLowerCase().includes(companySearch.toLowerCase().trim())
   );
 
-  const handleSelectSuggestion = (company: (typeof MOCK_COMPANIES)[0]) => {
+  const handleSelectSuggestion = (company: CompanyMetrics) => {
     setSelectedCompanyId(company.company_id);
     setCompanySearch(company.company_name);
     setCompanyProvince(company.province);

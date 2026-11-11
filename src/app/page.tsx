@@ -3,13 +3,13 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Search, Building, Award } from "lucide-react";
-import { MOCK_COMPANIES } from "@/data/mockData";
 import { CompanyCard } from "@/components/CompanyCard";
 import { normalizeVietnamese } from "@/lib/utils";
 import { CompanyMetrics } from "@/types/database";
 
 export default function HomePage() {
-  const [companies, setCompanies] = useState<CompanyMetrics[]>(MOCK_COMPANIES);
+  const [companies, setCompanies] = useState<CompanyMetrics[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProvince, setSelectedProvince] = useState<string>("all");
 
@@ -17,11 +17,15 @@ export default function HomePage() {
     fetch("/api/companies")
       .then((res) => res.json())
       .then((data) => {
-        if (data.companies && data.companies.length > 0) {
-          setCompanies(data.companies);
-        }
+        setCompanies(Array.isArray(data.companies) ? data.companies : []);
       })
-      .catch((err) => console.error("Lỗi tải danh sách công ty:", err));
+      .catch((err) => {
+        console.error("Lỗi tải danh sách công ty:", err);
+        setCompanies([]);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const provinces = [
@@ -116,27 +120,40 @@ export default function HomePage() {
           </div>
         </div>
 
-        {filteredCompanies.length > 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-44 rounded-xl border border-zinc-200 bg-white p-5 animate-pulse dark:border-zinc-800 dark:bg-zinc-900"
+              />
+            ))}
+          </div>
+        ) : filteredCompanies.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredCompanies.map((company) => (
               <CompanyCard key={company.company_id} company={company} />
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-zinc-300 p-12 text-center dark:border-zinc-700">
+          <div className="rounded-xl border border-dashed border-zinc-300 p-12 text-center dark:border-zinc-700 bg-white dark:bg-zinc-900">
             <Building className="mx-auto h-12 w-12 text-zinc-400" />
             <h3 className="mt-3 text-base font-bold text-zinc-800 dark:text-zinc-200">
-              Chưa tìm thấy công ty phù hợp
+              {searchQuery.trim() || selectedProvince !== "all"
+                ? "Chưa tìm thấy công ty phù hợp"
+                : "Chưa có dữ liệu công ty"}
             </h3>
             <p className="mt-1 text-xs text-zinc-500 max-w-md mx-auto">
-              Không tìm thấy công ty nào với từ khóa &ldquo;{searchQuery}&rdquo;. Bạn đang làm việc hoặc từng làm việc tại đây? Hãy là người đầu tiên chia sẻ review!
+              {searchQuery.trim() || selectedProvince !== "all"
+                ? `Không tìm thấy công ty nào phù hợp với bộ lọc hiện tại. Hãy là người đầu tiên chia sẻ review!`
+                : "Cơ sở dữ liệu hiện chưa có bài đánh giá nào. Hãy là người đầu tiên chia sẻ trải nghiệm môi trường làm việc!"}
             </p>
             <div className="mt-5">
               <Link
                 href="/review/new"
                 className="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-700"
               >
-                Viết review cho công ty này
+                Viết review ngay
               </Link>
             </div>
           </div>

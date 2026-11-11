@@ -39,37 +39,14 @@ export async function POST(req: NextRequest) {
       "127.0.0.1";
     const reporterHash = generateAuthorHash(clientIp);
 
-    // Lưu vào store cục bộ
-    const report = saveReport({
+    // Lưu vào bảng review_reports trên Supabase
+    const report = await saveReport({
       review_id,
       company_id,
       reason,
       details,
       reporter_hash: reporterHash,
     });
-
-    // Nếu cấu hình Supabase thì gửi thêm vào bảng review_reports
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (supabaseUrl && supabaseKey) {
-      try {
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabase = createClient(supabaseUrl, supabaseKey);
-        await supabase.from("review_reports").insert({
-          id: report.id,
-          review_id: report.review_id,
-          company_id: report.company_id,
-          reason: report.reason,
-          details: report.details,
-          status: "pending",
-          reporter_hash: report.reporter_hash,
-          created_at: report.created_at,
-        });
-      } catch (err) {
-        console.warn("Không thể đồng bộ report lên Supabase:", err);
-      }
-    }
 
     return NextResponse.json(
       {
