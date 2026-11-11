@@ -467,12 +467,14 @@ export async function saveReview(
 
 /**
  * Cập nhật trạng thái review (ví dụ: 'hidden' để ẩn review vi phạm)
+ * BẢO MẬT: Bắt buộc sử dụng getSupabaseAdminClient() (service_role) phía server
+ * vì chính sách RLS chỉ cấp quyền SELECT + INSERT cho khóa công khai (anon).
  */
 export async function updateReviewStatus(
   reviewId: string,
   newStatus: ReviewStatus
 ): Promise<boolean> {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseAdminClient();
   if (!supabase) return false;
 
   const { error } = await supabase

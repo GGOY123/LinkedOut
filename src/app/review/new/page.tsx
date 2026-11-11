@@ -29,7 +29,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
   const [companySearch, setCompanySearch] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState(initialCompanyId);
   const [isCustomCompany, setIsCustomCompany] = useState(true);
-  const [companyProvince, setCompanyProvince] = useState("Bình Dương");
+  const [companyProvince, setCompanyProvince] = useState("");
   const [companyDistrict, setCompanyDistrict] = useState("");
   const [companyIndustry, setCompanyIndustry] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -76,7 +76,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ company?: string; jobTitle?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ company?: string; jobTitle?: string; province?: string }>({});
 
   // Suggestions từ database thực
   const matchingSuggestions = availableCompanies.filter((c) =>
@@ -86,9 +86,9 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
   const handleSelectSuggestion = (company: CompanyMetrics) => {
     setSelectedCompanyId(company.company_id);
     setCompanySearch(company.company_name);
-    setCompanyProvince(company.province);
-    setCompanyDistrict(company.district);
-    setCompanyIndustry(company.industry);
+    setCompanyProvince(company.province || "");
+    setCompanyDistrict(company.district || "");
+    setCompanyIndustry(company.industry || "");
     setIsCustomCompany(false);
     setShowSuggestions(false);
   };
@@ -105,9 +105,12 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
     setFormError(null);
     setFieldErrors({});
 
-    const errors: { company?: string; jobTitle?: string } = {};
+    const errors: { company?: string; jobTitle?: string; province?: string } = {};
     if (!companySearch.trim()) errors.company = "Vui lòng nhập tên công ty!";
     if (!jobTitle.trim()) errors.jobTitle = "Vui lòng nhập vị trí/chức danh!";
+    if (isCustomCompany && !companyProvince.trim()) {
+      errors.province = "Vui lòng chọn tỉnh/thành phố!";
+    }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -202,6 +205,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
           ) : null}
           <Link
             href="/"
+            prefetch={false}
             className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
           >
             Về trang chủ
@@ -314,9 +318,17 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                       <label className="block text-[11px] text-zinc-500 font-medium">Tỉnh / Thành phố *</label>
                       <select
                         value={companyProvince}
+                        required
                         onChange={(e) => setCompanyProvince(e.target.value)}
-                        className="mt-1 w-full rounded border border-zinc-300 bg-white p-2 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                        className={`mt-1 w-full rounded border bg-white p-2 text-xs focus:border-red-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 ${
+                          !companyProvince
+                            ? "text-zinc-400 dark:text-zinc-500 border-zinc-300"
+                            : "text-zinc-900 dark:text-zinc-100 border-zinc-300"
+                        } ${fieldErrors.province ? "border-red-500 dark:border-red-500" : ""}`}
                       >
+                        <option value="" disabled>
+                          -- Chọn tỉnh/thành phố --
+                        </option>
                         <option value="Bình Dương">Bình Dương</option>
                         <option value="Đồng Nai">Đồng Nai</option>
                         <option value="TP.HCM">TP.HCM</option>
@@ -327,6 +339,11 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                         <option value="Hà Nội">Hà Nội</option>
                         <option value="Khác">Tỉnh thành khác</option>
                       </select>
+                      {fieldErrors.province && (
+                        <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
+                          {fieldErrors.province}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -356,8 +373,8 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
             </div>
 
             {/* 2. Vị trí & Tình trạng làm việc */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <div className="md:col-span-5">
                 <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wide dark:text-zinc-200">
                   2. Chức danh công việc *
                 </label>
@@ -378,7 +395,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                 )}
               </div>
 
-              <div>
+              <div className="md:col-span-4">
                 <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wide dark:text-zinc-200">
                   Tình trạng làm việc
                 </label>
@@ -387,12 +404,12 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                   onChange={(e) => setEmploymentStatus(e.target.value as EmploymentStatus)}
                   className="mt-1.5 w-full rounded-lg border border-zinc-300 bg-white p-2.5 text-sm font-medium text-zinc-900 focus:border-red-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
                 >
-                  <option value="current">Đang làm việc tại đây</option>
-                  <option value="former">Đã nghỉ việc (Cựu nhân viên)</option>
+                  <option value="current">Đang làm việc</option>
+                  <option value="former">Đã nghỉ việc</option>
                 </select>
               </div>
 
-              <div>
+              <div className="md:col-span-3">
                 <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wide dark:text-zinc-200">
                   Thời gian làm việc
                 </label>
@@ -413,15 +430,17 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
               </h3>
               
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                <div>
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">Lương & Phúc lợi:</span>
+                <div className="flex flex-col justify-between h-full">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300 min-h-[2.5rem] flex items-start">
+                    Lương & Phúc lợi:
+                  </span>
                   <div className="mt-2 flex items-center gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         type="button"
                         key={star}
                         onClick={() => setScoreSalary(star)}
-                        className={`h-7 w-7 rounded-md font-bold text-xs ${
+                        className={`h-7 w-7 rounded-md font-bold text-xs transition-colors ${
                           scoreSalary >= star
                             ? "bg-amber-400 text-white"
                             : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
@@ -433,15 +452,17 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                   </div>
                 </div>
 
-                <div>
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">Văn hóa & Môi trường:</span>
+                <div className="flex flex-col justify-between h-full">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300 min-h-[2.5rem] flex items-start">
+                    Văn hóa & Môi trường:
+                  </span>
                   <div className="mt-2 flex items-center gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         type="button"
                         key={star}
                         onClick={() => setScoreCulture(star)}
-                        className={`h-7 w-7 rounded-md font-bold text-xs ${
+                        className={`h-7 w-7 rounded-md font-bold text-xs transition-colors ${
                           scoreCulture >= star
                             ? "bg-amber-400 text-white"
                             : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
@@ -453,15 +474,17 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                   </div>
                 </div>
 
-                <div>
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">Cân bằng cuộc sống (WLB):</span>
+                <div className="flex flex-col justify-between h-full">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300 min-h-[2.5rem] flex items-start">
+                    Cân bằng cuộc sống (WLB):
+                  </span>
                   <div className="mt-2 flex items-center gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         type="button"
                         key={star}
                         onClick={() => setScoreWlb(star)}
-                        className={`h-7 w-7 rounded-md font-bold text-xs ${
+                        className={`h-7 w-7 rounded-md font-bold text-xs transition-colors ${
                           scoreWlb >= star
                             ? "bg-amber-400 text-white"
                             : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
@@ -473,15 +496,17 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                   </div>
                 </div>
 
-                <div>
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">Ban lãnh đạo & Quản lý:</span>
+                <div className="flex flex-col justify-between h-full">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300 min-h-[2.5rem] flex items-start">
+                    Ban lãnh đạo & Quản lý:
+                  </span>
                   <div className="mt-2 flex items-center gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         type="button"
                         key={star}
                         onClick={() => setScoreManagement(star)}
-                        className={`h-7 w-7 rounded-md font-bold text-xs ${
+                        className={`h-7 w-7 rounded-md font-bold text-xs transition-colors ${
                           scoreManagement >= star
                             ? "bg-amber-400 text-white"
                             : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"

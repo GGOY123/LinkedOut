@@ -232,7 +232,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
                   Đã tiếp nhận báo cáo
                 </h4>
                 <p className="mt-1.5 text-xs text-zinc-500 max-w-xs mx-auto">
-                  Cảm ơn bạn. Báo cáo đã được lưu vào hệ thống kiểm duyệt Supabase để ban quản trị đối chiếu và xử lý.
+                  Cảm ơn bạn. Báo cáo đã được lưu vào hệ thống kiểm duyệt để ban quản trị đối chiếu và xử lý.
                 </p>
                 <button
                   type="button"
