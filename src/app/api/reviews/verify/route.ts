@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getSupabaseAdminClient, getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 
 // File bằng chứng được trình duyệt tải thẳng lên bucket riêng tư
 // "verification-proofs" (chính sách Storage chỉ cho phép thêm mới, không cho
@@ -51,29 +51,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ghi bản ghi duyệt bằng client quản trị (bảng verification_proofs
-    // không mở quyền ghi cho khóa công khai).
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // Ghi bản ghi duyệt qua PostgREST trực tiếp với header apikey chứa khóa
+    // bí mật mới (sb_secret_). Bảng verification_proofs không mở quyền ghi
+    // cho khóa công khai; khóa bí mật được gateway chấp nhận qua apikey mà
+    // không cần Authorization (khóa này không phải JWT).
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceKey) {
       return NextResponse.json(
         { error: "Hệ thống xác minh chưa được cấu hình phía máy chủ." },
         { status: 503 }
       );
     }
-    const admin = getSupabaseAdminClient();
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Hệ thống xác minh chưa sẵn sàng." },
-        { status: 503 }
-      );
-    }
-    const { error: insertErr } = await admin
-      .from("verification_proofs")
-      .insert({ review_id, file_path, status: "pending" });
-    if (insertErr) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const insertRes = await fetch(`${supabaseUrl}/rest/v1/verification_proofs`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ review_id, file_path, status: "pending" }),
+    });
+    if (!insertRes.ok) {
+      const detail = await insertRes.text().catch(() => "");
       return NextResponse.json(
         {
           error: "Không ghi nhận được bằng chứng xác minh.",
-          detail: insertErr.message,
+          detail: detail.slice(0, 300),
         },
         { status: 500 }
       );
