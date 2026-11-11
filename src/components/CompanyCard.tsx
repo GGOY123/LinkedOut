@@ -8,9 +8,13 @@ interface CompanyCardProps {
 }
 
 export function CompanyCard({ company }: CompanyCardProps) {
+  const companyId =
+    company.company_id ||
+    (company as unknown as { id?: string }).id ||
+    company.normalized_name;
   return (
     <Link
-      href={`/company/${company.company_id}`}
+      href={`/company/${encodeURIComponent(companyId)}`}
       className="group flex flex-col justify-between rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
     >
       <div>

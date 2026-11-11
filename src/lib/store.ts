@@ -233,15 +233,44 @@ export async function getAllCompanies(): Promise<CompanyMetrics[]> {
 }
 
 /**
- * Lấy thông tin chi tiết một công ty theo ID từ Supabase
+ * Lấy thông tin chi tiết một công ty theo ID (hoặc slug normalized_name) từ Supabase
  */
 export async function getCompanyById(companyId: string): Promise<CompanyMetrics | null> {
   const supabase = getSupabaseClient();
-  if (!supabase) {
+  if (!supabase || !companyId) {
     return null;
   }
 
-  const { data: c, error } = await supabase
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId);
+
+  // 1. Thử tìm trong view company_metrics nếu có
+  let viewQuery = supabase.from("company_metrics").select("*");
+  if (isUuid) {
+    viewQuery = viewQuery.eq("company_id", companyId);
+  } else {
+    viewQuery = viewQuery.eq("normalized_name", companyId);
+  }
+  const { data: viewData, error: viewErr } = await viewQuery.maybeSingle();
+  if (!viewErr && viewData) {
+    return {
+      company_id: viewData.company_id,
+      company_name: viewData.company_name,
+      normalized_name: viewData.normalized_name,
+      industry: viewData.industry,
+      province: viewData.province,
+      district: viewData.district,
+      total_reviews: Number(viewData.total_reviews) || 0,
+      overall_rating: Number(viewData.overall_rating) || 0,
+      avg_salary_score: Number(viewData.avg_salary_score) || 0,
+      avg_culture_score: Number(viewData.avg_culture_score) || 0,
+      avg_wlb_score: Number(viewData.avg_wlb_score) || 0,
+      avg_management_score: Number(viewData.avg_management_score) || 0,
+      recommend_rate: Number(viewData.recommend_rate) || 0,
+    };
+  }
+
+  // 2. Fallback trực tiếp vào bảng companies join company_reviews
+  let tableQuery = supabase
     .from("companies")
     .select(`
       id,
@@ -260,9 +289,15 @@ export async function getCompanyById(companyId: string): Promise<CompanyMetrics 
         recommend_to_friend,
         status
       )
-    `)
-    .eq("id", companyId)
-    .maybeSingle();
+    `);
+
+  if (isUuid) {
+    tableQuery = tableQuery.eq("id", companyId);
+  } else {
+    tableQuery = tableQuery.eq("normalized_name", companyId);
+  }
+
+  const { data: c, error } = await tableQuery.maybeSingle();
 
   if (error || !c) {
     return null;
@@ -272,21 +307,39 @@ export async function getCompanyById(companyId: string): Promise<CompanyMetrics 
 }
 
 /**
- * Lấy danh sách review của một công ty theo ID từ Supabase
+ * Lấy danh sách review của một công ty theo ID (hoặc slug) từ Supabase
  */
 export async function getReviewsByCompanyId(
   companyId: string,
   includeHidden = false
 ): Promise<CompanyReview[]> {
   const supabase = getSupabaseClient();
-  if (!supabase) {
+  if (!supabase || !companyId) {
     return [];
+  }
+
+  let targetUuid = companyId;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId);
+
+  // Nếu không phải định dạng UUID (ví dụ: slug), tra cứu ID trước
+  if (!isUuid) {
+    const { data: comp } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("normalized_name", companyId)
+      .maybeSingle();
+
+    if (comp?.id) {
+      targetUuid = comp.id;
+    } else {
+      return [];
+    }
   }
 
   let query = supabase
     .from("company_reviews")
     .select("*")
-    .eq("company_id", companyId)
+    .eq("company_id", targetUuid)
     .order("created_at", { ascending: false });
 
   if (!includeHidden) {
