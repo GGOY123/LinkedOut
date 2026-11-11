@@ -496,24 +496,35 @@ export async function saveReport(input: CreateReportInput): Promise<ReviewReport
     throw new Error("Chưa cấu hình Supabase để tiếp nhận báo cáo vi phạm.");
   }
 
-  const { data, error } = await supabase
-    .from("review_reports")
-    .insert({
-      review_id: input.review_id,
-      company_id: input.company_id || null,
-      reason: input.reason,
-      details: input.details?.trim() || null,
-      reporter_hash: input.reporter_hash || null,
-      status: "pending",
-    })
-    .select()
-    .single();
+  // Không đọc lại dòng vừa ghi (.select() sau insert): bảng review_reports chỉ cho
+  // service_role quyền SELECT, anon đọc lại sẽ vi phạm RLS và rollback cả insert.
+  // Vì vậy tự sinh id ở client và trả về object đã cấu thành.
+  const report: ReviewReport = {
+    id: crypto.randomUUID(),
+    review_id: input.review_id,
+    company_id: input.company_id || undefined,
+    reason: input.reason,
+    details: input.details?.trim() || undefined,
+    status: "pending",
+    reporter_hash: input.reporter_hash || undefined,
+    created_at: new Date().toISOString(),
+  };
 
-  if (error || !data) {
-    throw new Error("Không thể lưu báo cáo vi phạm vào Supabase: " + (error?.message || ""));
+  const { error } = await supabase.from("review_reports").insert({
+    id: report.id,
+    review_id: report.review_id,
+    company_id: report.company_id || null,
+    reason: report.reason,
+    details: report.details || null,
+    reporter_hash: report.reporter_hash || null,
+    status: report.status,
+  });
+
+  if (error) {
+    throw new Error("Không thể lưu báo cáo vi phạm vào Supabase: " + error.message);
   }
 
-  return data as ReviewReport;
+  return report;
 }
 
 /**
