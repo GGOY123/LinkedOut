@@ -624,12 +624,12 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
             </div>
 
             {/* 8. Xác minh bằng chứng (Tùy chọn) */}
-            <div className="rounded-xl border border-dashed border-zinc-300 p-4 dark:border-zinc-700">
+            <div className="max-w-full overflow-hidden rounded-xl border border-dashed border-zinc-300 p-4 dark:border-zinc-700">
               <div className="flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
                     Nâng cấp huy hiệu &ldquo;Đã xác minh làm việc&rdquo; (Mức 2)
                   </h4>
@@ -637,7 +637,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                     Tải lên ảnh Quyết định thôi việc hoặc Thư mời nhận việc (Offer Letter). Hãy che thông tin CCCD và số tài khoản ngân hàng trước khi tải. File sẽ tự hủy sau khi duyệt.
                   </p>
                   
-                  <div className="mt-3">
+                  <div className="mt-3 min-w-0">
                     <input
                       type="file"
                       accept="image/*,.pdf"
@@ -648,7 +648,7 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
                           e.target.title = "Đã chọn: " + f.name;
                         }
                       }}
-                      className="text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"
+                      className="w-full max-w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"
                     />
                     <p className="mt-1.5 text-[11px] text-zinc-400">File sẽ được xem xét bởi admin và tự hủy sau khi duyệt.</p>
                   </div>
