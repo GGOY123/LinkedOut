@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { 
@@ -168,15 +169,38 @@ function ReviewFormContent({ onResetForm }: ReviewFormContentProps) {
         setSelectedCompanyId(json.company_id);
       }
 
-      // Có đính kèm bằng chứng xác minh: tải lên qua API riêng sau khi
-      // review đã được tạo (cần review_id do server trả về).
+      // Có đính kèm bằng chứng xác minh: trình duyệt tải file thẳng lên
+      // bucket riêng tư (chính sách chỉ cho thêm mới), rồi gọi API ghi nhận
+      // bản ghi chờ duyệt. Cần review_id do server trả về trước đó.
       if (proofFile && json.review_id) {
         try {
-          const fd = new FormData();
-          fd.append("review_id", json.review_id);
-          fd.append("file", proofFile);
-          const vRes = await fetch("/api/reviews/verify", { method: "POST", body: fd });
-          setProofUploaded(vRes.ok);
+          const extMap: Record<string, string> = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp",
+            "image/gif": "gif",
+            "application/pdf": "pdf",
+          };
+          const ext = extMap[proofFile.type];
+          if (!ext || proofFile.size === 0 || proofFile.size > 5 * 1024 * 1024) {
+            setProofUploaded(false);
+          } else {
+            const path = `${json.review_id}/${crypto.randomUUID()}.${ext}`;
+            const supabase = createSupabaseBrowserClient();
+            const { error: upErr } = await supabase.storage
+              .from("verification-proofs")
+              .upload(path, proofFile, { contentType: proofFile.type, upsert: false });
+            if (upErr) {
+              setProofUploaded(false);
+            } else {
+              const vRes = await fetch("/api/reviews/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ review_id: json.review_id, file_path: path }),
+              });
+              setProofUploaded(vRes.ok);
+            }
+          }
         } catch {
           setProofUploaded(false);
         }
